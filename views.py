@@ -113,44 +113,60 @@ class LFGSetupView(ui.View):
         }
 
         channel_id = int(os.getenv("LFG_CHANNEL_ID"))
-        channel = interaction.client.get_channel(channel_id)
+        channel = interaction.client.get_channel(channel_id) or interaction.guild.get_channel(channel_id)
 
-        lobby_view = LFGLobbyView()
-        message    = await channel.send(
-            embed=embeds.build(temp),
-            view=lobby_view,
-        )
+        if channel is None:
+            await interaction.followup.send(
+                "❌ Unable to access the LFG channel (ID not found in cache). "
+                "Please verify the bot has permission to view that channel.",
+                ephemeral=True,
+            )
+            return
 
-        session = sess.create(
-            message_id = message.id,
-            host       = interaction.user,
-            mode       = self.mode,
-            rank       = self.rank,
-            playstyle  = self.playstyle,
-        )
+        try:
+            lobby_view = LFGLobbyView(bot=interaction.client)
+            message    = await channel.send(
+                embed=embeds.build(temp),
+                view=lobby_view,
+            )
 
-        # --- Log creation ---
-        sess.log_creation(session, channel.id, message.id)
+            session = sess.create(
+                message_id = message.id,
+                host       = interaction.user,
+                mode       = self.mode,
+                rank       = self.rank,
+                playstyle  = self.playstyle,
+            )
 
-        # Give the view its message ID so buttons can find the session
-        lobby_view.message_id = message.id
+            # --- Log creation ---
+            sess.log_creation(session, channel.id, message.id)
 
-        # Create thread
-        thread = await message.create_thread(
-            name                 = f"🏎️ {interaction.user.display_name} • {self.mode}",
-            auto_archive_duration= 60,
-        )
-        session["thread"] = thread
+            # Give the view its message ID so buttons can find the session
+            lobby_view.message_id = message.id
 
-        await thread.send(
-            f"👋 {interaction.user.mention} started a Racing Master lobby!\n"
-            f"Minimum **{sess.MIN_PLAYERS}** racers needed to unlock Start."
-        )
+            # Create thread
+            thread = await message.create_thread(
+                name                 = f"🏎️ {interaction.user.display_name} • {self.mode}",
+                auto_archive_duration= 60,
+            )
+            session["thread"] = thread
 
-        await interaction.followup.send(
-            f"✅ Lobby created in {channel.mention}!",
-            ephemeral=True,
-        )
+            await thread.send(
+                f"👋 {interaction.user.mention} started a Racing Master lobby!\n"
+                f"Minimum **{sess.MIN_PLAYERS}** racers needed to unlock Start."
+            )
+
+            await interaction.followup.send(
+                f"✅ Lobby created in {channel.mention}!",
+                ephemeral=True,
+            )
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Failed to create lobby: {e}",
+                ephemeral=True,
+            )
+            return
+
         self.stop()
 
     async def on_timeout(self):
@@ -237,9 +253,10 @@ class LFGLobbyView(ui.View):
     • Close      — host-only; cancels lobby
     """
 
-    def __init__(self):
-        super().__init__(timeout=None)   # buttons stay live until phase changes
+    def __init__(self, bot=None):
+        super().__init__(timeout=1800)
         self.message_id: int | None = None
+        self.bot = bot
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _update_start_button(self, session: dict):
@@ -434,6 +451,42 @@ class LFGLobbyView(ui.View):
 
         sess.delete(self.message_id)
         self.stop()
+
+    async def on_timeout(self):
+        session = sess.get(self.message_id)
+        if session is None or session["phase"] != "lobby":
+            return
+
+        session["phase"] = "finished"
+
+        extra = {"reason": "inactivity_timeout"}
+        if "created_at" in session:
+            duration = (datetime.now() - session["created_at"]).total_seconds()
+            extra["duration_seconds"] = round(duration, 1)
+        sess.log_event(
+            "timeout",
+            session_id=self.message_id,
+            extra=extra,
+        )
+
+        if self.bot:
+            try:
+                channel_id = int(os.getenv("LFG_CHANNEL_ID"))
+                channel = self.bot.get_channel(channel_id)
+                if channel:
+                    msg = await channel.fetch_message(self.message_id)
+                    await msg.edit(embed=embeds.build(session), view=LFGDoneView())
+            except Exception:
+                pass
+
+        if session.get("thread"):
+            await session["thread"].send(
+                "⏰ This lobby has timed out due to inactivity.\n"
+                "This lobby has ended. Thread will archive automatically in 5 minutes."
+            )
+            asyncio.create_task(_schedule_cleanup(self.message_id, session))
+
+        sess.delete(self.message_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

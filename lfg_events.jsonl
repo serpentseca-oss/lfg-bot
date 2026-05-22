@@ -53,3 +53,8 @@
 {"timestamp": "2026-05-14T15:58:00.746", "event": "close", "session_id": 1504391986394955827, "user_id": 1415884510871949322, "reason": "host_closed", "duration_seconds": 80.5}
 {"timestamp": "2026-05-14T16:02:07.681", "event": "create", "session_id": 1504393360775970918, "host_id": 380687594192764928, "host_name": "avengersman", "mode": "Custom Room", "rank": "Proficient", "playstyle": "Any", "min_players": 2, "max_players": 4, "channel_id": 1504320151284089012}
 {"timestamp": "2026-05-14T16:03:40.961", "event": "close", "session_id": 1504393360775970918, "user_id": 380687594192764928, "reason": "host_closed", "duration_seconds": 93.3}
+{"timestamp": "2026-05-22T10:06:10.933", "event": "create", "session_id": 1507202886634049597, "host_id": 1415884510871949322, "host_name": "cloe_netease", "mode": "Ranked Race", "rank": "Junior", "playstyle": "Casual", "min_players": 2, "max_players": 4, "channel_id": 1504320151284089012}
+{"timestamp": "2026-05-22T10:06:20.087", "event": "close", "session_id": 1507202886634049597, "user_id": 1415884510871949322, "reason": "host_closed", "duration_seconds": 9.2}
+{"timestamp": "2026-05-22T10:08:46.303", "event": "create", "session_id": 1507203538470699129, "host_id": 1467710277817602244, "host_name": "frankie_0429", "mode": "Ranked Race", "rank": "Junior", "playstyle": "Competitive", "min_players": 2, "max_players": 4, "channel_id": 1504320151284089012}
+{"timestamp": "2026-05-22T10:09:15.538", "event": "join", "session_id": 1507203538470699129, "user_id": 1415884510871949322, "user_name": "cloe_netease", "participant_count": 2}
+{"timestamp": "2026-05-22T10:17:40.597", "event": "close", "session_id": 1507203538470699129, "user_id": 1467710277817602244, "reason": "host_closed", "duration_seconds": 534.3}
